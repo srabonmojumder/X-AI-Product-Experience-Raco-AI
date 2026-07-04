@@ -1,106 +1,160 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { motion, useScroll } from "framer-motion";
+import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { ArrowRight, ArrowDown } from "lucide-react";
-import { ease, stagger } from "@/lib/motion";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
-import { Eyebrow } from "@/components/ui/primitives";
+import { fadeUp, stagger, ease } from "@/lib/motion";
 
-// Three.js only runs in the browser.
 const DataFieldCanvas = dynamic(() => import("@/components/three/DataFieldCanvas"), {
   ssr: false,
-  loading: () => null,
 });
 
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.9, ease: ease.outExpo } },
-};
+function Ticks() {
+  const base = "absolute h-3 w-3 border-field-line";
+  return (
+    <>
+      <span className={`${base} left-3 top-3 border-l border-t`} />
+      <span className={`${base} right-3 top-3 border-r border-t`} />
+      <span className={`${base} bottom-3 left-3 border-b border-l`} />
+      <span className={`${base} bottom-3 right-3 border-b border-r`} />
+    </>
+  );
+}
 
 export function Hero() {
-  const sectionRef = useRef<HTMLElement>(null);
   const reduced = usePrefersReducedMotion();
+  const heroRef = useRef<HTMLElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const bloomRef = useRef<HTMLDivElement>(null);
 
-  // Progress across the hero's extra scroll height (0 = chaos, 1 = structured).
+  const [pct, setPct] = useState(0);
+  const [phase, setPhase] = useState("STILL JUST NOISE");
+  const [readout, setReadout] = useState("resting · move to disturb");
+
   const { scrollYProgress } = useScroll({
-    target: sectionRef,
+    target: heroRef,
     offset: ["start start", "end start"],
   });
 
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    setPct(Math.round(v * 99));
+    setPhase(v < 0.35 ? "STILL JUST NOISE" : v < 0.8 ? "FINDING ITS SHAPE" : "UNDERSTOOD");
+  });
+
+  const onFieldMove = (e: React.PointerEvent) => {
+    if (reduced) return;
+    const el = fieldRef.current;
+    const bloom = bloomRef.current;
+    if (!el || !bloom) return;
+    const r = el.getBoundingClientRect();
+    bloom.style.left = `${e.clientX - r.left}px`;
+    bloom.style.top = `${e.clientY - r.top}px`;
+    setReadout("drawn to your cursor");
+  };
+
   return (
-    <section ref={sectionRef} className="relative h-[135vh]">
-      <div className="sticky top-0 h-screen overflow-hidden">
-        {/* The data field lives behind the copy. */}
-        <DataFieldCanvas progress={scrollYProgress} reduced={reduced} />
-
-        {/* Readability washes over the field. */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_45%,transparent_35%,rgba(11,13,18,0.55)_100%)]" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-bg to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-bg to-transparent" />
-
-        {/* Centered content. */}
-        <div className="relative z-10 flex h-full items-center">
-          <div className="shell">
-            <motion.div
-              variants={stagger(0.12, 0.35)}
-              initial="hidden"
-              animate="show"
-              className="max-w-3xl"
-            >
-              <motion.div variants={item}>
-                <Eyebrow>Intelligence workspace</Eyebrow>
-              </motion.div>
-
-              <motion.h1
-                variants={item}
-                className="mt-6 text-display-xl font-medium text-ink"
-              >
-                From raw data to{" "}
-                <span className="text-signal">structured intelligence</span>.
-              </motion.h1>
-
-              <motion.p
-                variants={item}
-                className="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted"
-              >
-                Xai unifies every source, reasons over the connections between them,
-                and turns what it finds into decisions your team can run.
-              </motion.p>
-
-              <motion.div variants={item} className="mt-9 flex flex-wrap items-center gap-3">
-                <a href="#dashboard" className="btn-primary">
-                  Request access
-                  <ArrowRight className="h-4 w-4" strokeWidth={2} />
-                </a>
-                <a href="#insight-flow" className="btn-ghost">
-                  See how it works
-                </a>
-              </motion.div>
-            </motion.div>
-          </div>
-        </div>
-
-        {/* Scroll cue. */}
-        <motion.a
-          href="#insight-flow"
-          aria-label="Scroll to how it works"
-          className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 text-ink-faint transition-colors hover:text-ink-muted"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.6, duration: 1 }}
-        >
-          <motion.span
-            className="flex flex-col items-center gap-2"
-            animate={reduced ? undefined : { y: [0, 6, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em]">Scroll</span>
-            <ArrowDown className="h-4 w-4" />
+    <header ref={heroRef} id="hero" className="relative pt-28 md:pt-32">
+      <div className="shell grid items-center gap-10 pb-16 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pb-24">
+        {/* Left — message */}
+        <motion.div variants={stagger(0.08)} initial="hidden" animate="show">
+          <motion.span variants={fadeUp} className="eyebrow">
+            Living Intelligence · 01
           </motion.span>
-        </motion.a>
+          <motion.h1
+            variants={fadeUp}
+            className="text-display-xl mt-5 text-ink"
+          >
+            Turn raw noise
+            <br />
+            into <span className="text-living">living</span>
+            <br />
+            <span className="font-medium text-ink-muted">intelligence.</span>
+          </motion.h1>
+          <motion.p
+            variants={fadeUp}
+            className="mt-6 max-w-md text-[1.075rem] leading-relaxed text-ink-muted"
+          >
+            Xai listens to every source, learns how they connect, and grows the noise into
+            understanding your team can act on — gently, continuously, in real time.
+          </motion.p>
+          <motion.div variants={fadeUp} className="mt-8 flex flex-wrap gap-3">
+            <a href="#workspace" className="btn-primary">
+              Request access <ArrowRight size={16} />
+            </a>
+            <a href="#flow" className="btn-ghost">
+              See how it flows
+            </a>
+          </motion.div>
+          <motion.div
+            variants={fadeUp}
+            className="mt-10 flex gap-8 border-t border-line pt-6"
+          >
+            {[
+              ["Sources", "42 live"],
+              ["Signals / s", "4,480"],
+              ["Understanding", `${String(pct).padStart(2, "0")} → 99`],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
+                  {k}
+                </div>
+                <div className="mt-1 font-display text-[1.35rem] font-bold text-ink">{v}</div>
+              </div>
+            ))}
+          </motion.div>
+        </motion.div>
+
+        {/* Right — the living field */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9, ease: ease.outExpo, delay: 0.1 }}
+        >
+          <div
+            ref={fieldRef}
+            onPointerMove={onFieldMove}
+            className="field group aspect-[4/3] w-full"
+          >
+            <Ticks />
+            <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-3">
+              <span className="field-label">The living field</span>
+              <span className="field-label">{phase}</span>
+            </div>
+
+            {/* Cursor life-bloom */}
+            {!reduced && (
+              <div
+                ref={bloomRef}
+                aria-hidden
+                className="pointer-events-none absolute z-10 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 blur-[4px] transition-opacity duration-300 [mix-blend-mode:screen] group-hover:opacity-100"
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(255,138,91,0.44) 0%, rgba(251,90,120,0.22) 38%, transparent 68%)",
+                }}
+              />
+            )}
+
+            <DataFieldCanvas progress={scrollYProgress} reduced={reduced} />
+
+            <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-4 py-3">
+              <span className="field-label flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-coral shadow-[0_0_10px_var(--coral)]" />
+                listening
+              </span>
+              <span className="field-label">{readout}</span>
+            </div>
+          </div>
+        </motion.div>
       </div>
-    </section>
+
+      <div className="shell flex justify-center pb-10">
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
+          Scroll to watch it grow
+          <ArrowDown size={13} className={reduced ? "" : "animate-bounce"} />
+        </div>
+      </div>
+    </header>
   );
 }

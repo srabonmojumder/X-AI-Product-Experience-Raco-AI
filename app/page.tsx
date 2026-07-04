@@ -10,13 +10,13 @@ export default function Page() {
     <>
       <Navbar />
       <main id="top">
-        {/* 1 — Hero: raw data → structured intelligence (Three.js) */}
+        {/* 1 — Hero: raw noise → living intelligence (Three.js bloom) */}
         <Hero />
-        {/* 2 — Insight Flow: Ingest → Analyze → Generate (GSAP ScrollTrigger) */}
+        {/* 2 — How it flows: Listen → Connect → Bloom (GSAP ScrollTrigger) */}
         <InsightFlow />
-        {/* 3 — Intelligence Dashboard preview (Framer Motion) */}
+        {/* 3 — The workspace: living product dashboard (Framer Motion) */}
         <Dashboard />
-        {/* 4 — Signature interaction: the reorganizing data cluster (Three.js) */}
+        {/* 4 — Signature: the reshaping data cluster (Three.js) */}
         <Signature />
       </main>
       <Footer />

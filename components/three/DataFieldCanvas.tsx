@@ -15,7 +15,6 @@ export default function DataFieldCanvas({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(true);
 
-  // Only render frames while the hero is on screen.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;

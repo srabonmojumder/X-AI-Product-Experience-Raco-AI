@@ -1,183 +1,126 @@
-import type { LucideIcon } from "lucide-react";
-import {
-  LayoutGrid,
-  Database,
-  Boxes,
-  Sparkles,
-  Workflow,
-  Settings,
-  TrendingUp,
-  TrendingDown,
-} from "lucide-react";
+/**
+ * Single source of truth for the demo's content, so the components stay
+ * about presentation and motion. All figures are illustrative.
+ */
 
-/* ------------------------------------------------------------------ */
-/* Insight Flow — the three real stages of the pipeline               */
-/* (numbering is justified here: it is a genuine ordered sequence)    */
-/* ------------------------------------------------------------------ */
+export const nav = {
+  brand: { mark: "XAI", tag: "Living Intelligence" },
+  links: [
+    { label: "Signal", href: "#top" },
+    { label: "Flow", href: "#flow" },
+    { label: "Workspace", href: "#workspace" },
+    { label: "Bloom", href: "#bloom" },
+  ],
+  cta: { label: "Request access", href: "#workspace" },
+};
 
-export interface Stage {
-  id: string;
+export type Stage = {
   index: string;
-  title: string;
+  name: string;
   summary: string;
   detail: string;
   metric: { label: string; value: string };
-}
+};
 
 export const stages: Stage[] = [
   {
-    id: "ingest",
     index: "01",
-    title: "Ingest",
-    summary: "Connect every source into one typed stream.",
+    name: "Listen",
+    summary:
+      "Every source — warehouses, events, docs, APIs — gathered gently into one living field.",
     detail:
-      "Warehouses, event streams, and files land continuously. Schemas are inferred, deduplicated, and versioned the moment data arrives — no brittle pipelines to babysit.",
-    metric: { label: "Sources unified", value: "2,481" },
+      "Schema drift and duplicates are normalised at the edge, so nothing downstream has to guess.",
+    metric: { label: "throughput", value: "4.4K rows/s" },
   },
   {
-    id: "analyze",
     index: "02",
-    title: "Analyze",
-    summary: "Models reason over the graph, not just the rows.",
+    name: "Connect",
+    summary:
+      "The model feels for the connections — growing a living semantic graph of what relates to what.",
     detail:
-      "Xai builds a live semantic graph across your data and runs analysis against relationships — surfacing correlations, anomalies, and drivers that flat queries miss.",
-    metric: { label: "Signals evaluated", value: "1.2M/s" },
+      "Weak signals reinforce each other into structure; the strongest relationships surface first.",
+    metric: { label: "edges scored", value: "1.2M" },
   },
   {
-    id: "generate",
     index: "03",
-    title: "Generate",
-    summary: "Turn findings into decisions and actions.",
+    name: "Bloom",
+    summary:
+      "The shape settles into a ranked, quantified insight — with a confidence you can defend.",
     detail:
-      "Every insight ships with its reasoning, a confidence band, and a ready-to-run automation. Approve it once and Xai keeps it running.",
-    metric: { label: "Decision latency", value: "480ms" },
+      "Each insight ships with its evidence trail and a recommended action, ready to automate.",
+    metric: { label: "confidence", value: "94%" },
   },
 ];
 
-/* ------------------------------------------------------------------ */
-/* Dashboard — sidebar, tabs, KPIs, charts, table                     */
-/* ------------------------------------------------------------------ */
-
-export interface NavItem {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  count?: number;
-}
-
-export const navItems: NavItem[] = [
-  { id: "overview", label: "Overview", icon: LayoutGrid },
-  { id: "datasets", label: "Datasets", icon: Database, count: 24 },
-  { id: "models", label: "Models", icon: Boxes, count: 6 },
-  { id: "insights", label: "Insights", icon: Sparkles, count: 12 },
-  { id: "automations", label: "Automations", icon: Workflow, count: 3 },
-  { id: "settings", label: "Settings", icon: Settings },
-];
-
-export type TabId = "overview" | "insights" | "automations";
-
-export const tabs: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "insights", label: "Insights" },
-  { id: "automations", label: "Automations" },
-];
-
-export interface Kpi {
-  id: string;
+export type Kpi = {
   label: string;
   value: string;
   delta: number;
-  trend: "up" | "down";
+  up: boolean;
   spark: number[];
-}
-
-export const kpis: Kpi[] = [
-  {
-    id: "throughput",
-    label: "Data throughput",
-    value: "84.2 GB/h",
-    delta: 12.4,
-    trend: "up",
-    spark: [12, 18, 14, 22, 26, 24, 31, 34, 30, 38, 42, 47],
-  },
-  {
-    id: "insights",
-    label: "Insights generated",
-    value: "1,204",
-    delta: 8.1,
-    trend: "up",
-    spark: [40, 42, 38, 44, 48, 50, 47, 53, 58, 55, 61, 66],
-  },
-  {
-    id: "accuracy",
-    label: "Model accuracy",
-    value: "97.3%",
-    delta: 0.6,
-    trend: "up",
-    spark: [88, 90, 89, 91, 92, 93, 92, 94, 95, 95, 96, 97],
-  },
-  {
-    id: "latency",
-    label: "Decision latency",
-    value: "480 ms",
-    delta: -14.2,
-    trend: "down",
-    spark: [80, 74, 70, 66, 61, 58, 55, 52, 50, 48, 47, 44],
-  },
-];
-
-/** Two-series area chart: signal detected vs. noise filtered. */
-export const areaSeries = {
-  labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-  signal: [32, 41, 38, 55, 62, 58, 74],
-  noise: [22, 26, 24, 30, 28, 25, 27],
 };
 
-/** Category bar chart — insights by domain. */
-export const barSeries = [
-  { label: "Revenue", value: 82 },
-  { label: "Product", value: 64 },
-  { label: "Growth", value: 71 },
-  { label: "Ops", value: 48 },
-  { label: "Risk", value: 39 },
+export const kpis: Kpi[] = [
+  { label: "Sources synced", value: "42", delta: 8, up: true, spark: [3, 5, 4, 6, 7, 6, 9] },
+  { label: "Insights / day", value: "318", delta: 12, up: true, spark: [10, 12, 11, 15, 14, 18, 22] },
+  { label: "Median confidence", value: "94%", delta: 3, up: true, spark: [80, 82, 85, 88, 90, 92, 94] },
+  { label: "Actions automated", value: "1.2K", delta: -2, up: false, spark: [20, 18, 19, 17, 16, 15, 14] },
 ];
 
-/** Donut — where automations act. */
-export const donutSeries = [
-  { label: "Alerts", value: 42, color: "#57E1CE" },
-  { label: "Routing", value: 28, color: "#7D8CFF" },
-  { label: "Reports", value: 18, color: "#A7B1FF" },
-  { label: "Other", value: 12, color: "#3A4150" },
+export const signalSeries = [60, 72, 66, 88, 84, 110, 102, 120, 116, 140, 150, 168];
+export const noiseSeries = [40, 44, 38, 52, 48, 46, 54, 50, 58, 52, 60, 56];
+
+export const domainBars: [string, number][] = [
+  ["Revenue", 82],
+  ["Product", 64],
+  ["Ops", 48],
+  ["Growth", 72],
+  ["Risk", 38],
 ];
 
-export interface InsightRow {
+export type Insight = {
   id: string;
   title: string;
   domain: string;
   confidence: number;
-  impact: "High" | "Medium" | "Low";
-  trend: "up" | "down";
-}
+  impact: "high" | "med" | "low";
+  up: boolean;
+};
 
-export const insightRows: InsightRow[] = [
-  { id: "INS-4821", title: "Churn risk rising in EU enterprise cohort", domain: "Revenue", confidence: 94, impact: "High", trend: "up" },
-  { id: "INS-4817", title: "Onboarding drop-off at step 3 correlates with plan tier", domain: "Product", confidence: 88, impact: "High", trend: "down" },
-  { id: "INS-4809", title: "Support volume predicts expansion within 30 days", domain: "Growth", confidence: 81, impact: "Medium", trend: "up" },
-  { id: "INS-4802", title: "Ingestion latency spikes trace to a single connector", domain: "Ops", confidence: 76, impact: "Medium", trend: "down" },
-  { id: "INS-4798", title: "Anomalous refund pattern in APAC region", domain: "Risk", confidence: 69, impact: "Low", trend: "up" },
+export const insights: Insight[] = [
+  { id: "IX-207", title: "Churn risk rising in EU enterprise cohort", domain: "Revenue", confidence: 94, impact: "high", up: true },
+  { id: "IX-198", title: "Onboarding drop-off at step 3 correlates with trial length", domain: "Product", confidence: 88, impact: "high", up: true },
+  { id: "IX-186", title: "Ingestion latency spike traced to source #14", domain: "Ops", confidence: 76, impact: "med", up: false },
+  { id: "IX-171", title: "Referral loops outperform paid on 60-day LTV", domain: "Growth", confidence: 82, impact: "med", up: true },
+  { id: "IX-160", title: "Anomalous access pattern flagged in region APAC", domain: "Risk", confidence: 69, impact: "low", up: false },
 ];
 
-export const trendIcon = { up: TrendingUp, down: TrendingDown };
+export type Automation = {
+  name: string;
+  desc: string;
+  runs: string;
+  on: boolean;
+};
 
-/* ------------------------------------------------------------------ */
-/* Signature interaction — the four narrative formations              */
-/* ------------------------------------------------------------------ */
+export const automations: Automation[] = [
+  { name: "Alert on churn-risk spike", desc: "Notify #revenue when EU churn signal crosses 90%.", runs: "142 runs", on: true },
+  { name: "Route anomalies to on-call", desc: "Page the on-call engineer for Sev-1 ingestion faults.", runs: "38 runs", on: true },
+  { name: "Weekly insight digest", desc: "Compile ranked insights into a Monday report.", runs: "12 runs", on: false },
+];
 
-export const formations = [
-  { id: "raw", label: "Raw", caption: "Unstructured signal" },
-  { id: "grid", label: "Structured", caption: "Typed & indexed" },
-  { id: "flow", label: "Flow", caption: "Reasoned over graph" },
-  { id: "insight", label: "Insight", caption: "Ranked & actionable" },
-] as const;
+export const actionDonut: [string, string, number][] = [
+  ["Alerts", "var(--violet)", 42],
+  ["Routing", "var(--coral)", 28],
+  ["Reports", "var(--coral-soft)", 18],
+  ["Other", "var(--ink-faint)", 12],
+];
 
-export type FormationId = (typeof formations)[number]["id"];
+/** The four states the signature cluster morphs between. */
+export type FormationKey = "seed" | "bloom" | "flow" | "ranked";
+
+export const formations: { key: FormationKey; label: string; caption: string }[] = [
+  { key: "seed", label: "Seed", caption: "Raw signal · unshaped" },
+  { key: "bloom", label: "Bloom", caption: "Understanding · taking shape" },
+  { key: "flow", label: "Flow", caption: "Related · living flow" },
+  { key: "ranked", label: "Ranked", caption: "Ranked · ready to act" },
+];

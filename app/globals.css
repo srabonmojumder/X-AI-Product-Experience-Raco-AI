@@ -2,10 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* A few tokens exposed as CSS variables for inline SVG fills/strokes. */
 :root {
-  /* Map Geist's own variables onto our semantic names. */
-  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --paper: #f3efe8;
+  --paper-raised: #fcfaf5;
+  --ink: #241f1a;
+  --ink-muted: #6c6459;
+  --ink-faint: #a79e90;
+  --line: rgba(36, 31, 26, 0.085);
+  --line-strong: rgba(36, 31, 26, 0.14);
+  --coral: #ff6a4d;
+  --coral-soft: #ff8566;
+  --violet: #7c5cf6;
+  --violet-soft: #9b7bff;
+  --grad-1: #ff8a5b;
+  --grad-2: #fb5a78;
+  --grad-3: #8b5cf6;
 }
 
 @layer base {
@@ -20,38 +32,42 @@
   }
 
   body {
-    background-color: theme("colors.bg");
+    background-color: theme("colors.paper.DEFAULT");
     color: theme("colors.ink.DEFAULT");
-    font-family: var(--font-sans);
+    font-family: theme("fontFamily.sans");
     overflow-x: hidden;
   }
 
-  ::selection {
-    background: rgba(125, 140, 255, 0.28);
-    color: #ffffff;
+  h1, h2, h3 {
+    font-family: theme("fontFamily.display");
+    font-weight: 700;
   }
 
-  /* Keyboard focus is always visible; pointer focus is not. */
+  ::selection {
+    background: theme("colors.coral.DEFAULT");
+    color: #fff;
+  }
+
   :focus-visible {
-    outline: 2px solid theme("colors.accent.DEFAULT");
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: 2px solid theme("colors.coral.DEFAULT");
+    outline-offset: 3px;
+    border-radius: 8px;
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.14);
+    background: rgba(36, 31, 26, 0.16);
     border-radius: 999px;
-    border: 3px solid theme("colors.bg");
+    border: 3px solid theme("colors.paper.DEFAULT");
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.24);
+    background: rgba(36, 31, 26, 0.28);
   }
 }
 
@@ -61,43 +77,86 @@
     @apply mx-auto w-full max-w-shell px-6 md:px-10;
   }
 
-  /* Structural mono label used for eyebrows and data readouts. */
+  /* Tracked-out label with a leading gradient tick. */
   .eyebrow {
-    @apply font-mono text-[11px] uppercase tracking-[0.22em] text-ink-muted;
+    @apply font-mono text-[11px] uppercase tracking-[0.24em] text-ink-muted;
   }
 
-  /* Hairline-bordered surface used for panels, cards, the dashboard frame. */
+  /* Soft, elevated surface — the warm replacement for hairline panels. */
   .panel {
-    @apply rounded-2xl border border-line bg-surface;
+    @apply rounded-3xl bg-paper-raised shadow-soft;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5
-           text-sm font-medium transition-all duration-300 ease-out-expo
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3
+           text-sm font-semibold transition-all duration-300 ease-out-expo
            focus-visible:outline-offset-4;
   }
+  /* Primary rides the living gradient. */
   .btn-primary {
-    @apply btn bg-ink text-bg hover:opacity-90 active:scale-[0.98];
+    @apply btn text-white;
+    background-image: linear-gradient(
+      118deg,
+      theme("colors.grad.1"),
+      theme("colors.grad.2") 46%,
+      theme("colors.grad.3")
+    );
+    box-shadow: 0 12px 28px -12px rgba(251, 90, 120, 0.55);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.05);
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
   }
   .btn-ghost {
-    @apply btn border border-line-strong text-ink hover:border-ink/40 hover:bg-white/[0.03];
+    @apply btn bg-paper-raised text-ink;
+    border: 1px solid theme("colors.line.strong");
+  }
+  .btn-ghost:hover {
+    border-color: theme("colors.coral.DEFAULT");
+    color: theme("colors.coral.DEFAULT");
+  }
+
+  /* A dark "living field" — the stage where raw signal grows into shape. */
+  .field {
+    @apply relative overflow-hidden rounded-3xl shadow-field;
+    background: theme("colors.field.DEFAULT");
+  }
+  .field-label {
+    @apply font-mono text-[10px] uppercase tracking-[0.16em] text-field-faint;
   }
 }
 
 @layer utilities {
-  /* The one place color is loud: the data signal gradient. */
-  .text-signal {
-    background-image: linear-gradient(100deg, theme("colors.signal.cyan"), theme("colors.signal.indigo"));
+  /* The one place colour is loud: the living gradient, as text. */
+  .text-living {
+    background-image: linear-gradient(
+      118deg,
+      theme("colors.grad.1"),
+      theme("colors.grad.2") 46%,
+      theme("colors.grad.3")
+    );
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
-  /* Faint atmospheric radial, fixed behind everything. */
-  .bg-atmosphere {
+  .bg-living {
+    background-image: linear-gradient(
+      118deg,
+      theme("colors.grad.1"),
+      theme("colors.grad.2") 46%,
+      theme("colors.grad.3")
+    );
+  }
+
+  /* Fixed warm aurora behind everything — replaces the rigid sampling grid. */
+  .bg-aurora {
     background:
-      radial-gradient(60% 50% at 50% 0%, rgba(125, 140, 255, 0.10), transparent 70%),
-      radial-gradient(40% 40% at 80% 20%, rgba(87, 225, 206, 0.06), transparent 70%);
+      radial-gradient(58% 44% at 15% 6%, rgba(255, 138, 91, 0.17), transparent 70%),
+      radial-gradient(52% 42% at 90% 16%, rgba(139, 92, 246, 0.15), transparent 72%),
+      radial-gradient(64% 52% at 74% 98%, rgba(251, 90, 120, 0.11), transparent 74%);
   }
 
   .mask-fade-y {
@@ -106,7 +165,7 @@
   }
 }
 
-/* Global safety net: honour reduced-motion even for library animations. */
+/* Honour reduced-motion even for library animations. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

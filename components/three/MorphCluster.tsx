@@ -3,152 +3,66 @@
 import { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { damp, lerp } from "@/lib/utils";
-import type { FormationId } from "@/lib/data";
-
-/* ------------------------------------------------------------------ */
-/* Particle budget and the four target formations.                    */
-/* Every particle owns one position per formation; we morph the       */
-/* "position" (from) attribute toward "aTarget" (to) on the GPU.      */
-/* ------------------------------------------------------------------ */
+import { clamp, damp, lerp } from "@/lib/utils";
+import type { FormationKey } from "@/lib/data";
 
 const COUNT = 2600;
 const TWO_PI = Math.PI * 2;
-
-// Grid slab dimensions (20 * 13 * 10 = 2600).
-const GX = 20;
-const GY = 13;
-const GZ = 10;
-
-type Vec = [number, number, number];
-
-function buildFormations() {
-  const raw = new Float32Array(COUNT * 3);
-  const grid = new Float32Array(COUNT * 3);
-  const flow = new Float32Array(COUNT * 3);
-  const insight = new Float32Array(COUNT * 3);
-  const color = new Float32Array(COUNT);
-  const seed = new Float32Array(COUNT);
-
-  const NB = 13; // bar columns
-  const perCol = Math.ceil(COUNT / NB);
-  const colHeight = Array.from({ length: NB }, (_, c) => {
-    // A varied, chart-like silhouette in [0.4, 1].
-    const wave = 0.5 + 0.5 * Math.sin((c / NB) * Math.PI * 1.5 + 0.6);
-    return 0.4 + wave * 0.6;
-  });
-
-  const set = (arr: Float32Array, i: number, v: Vec) => {
-    arr[i * 3] = v[0];
-    arr[i * 3 + 1] = v[1];
-    arr[i * 3 + 2] = v[2];
-  };
-
-  for (let i = 0; i < COUNT; i++) {
-    // ---- raw: point inside a gently flattened sphere ----
-    const r = 4.6 * Math.cbrt(Math.random());
-    const theta = Math.random() * TWO_PI;
-    const phi = Math.acos(2 * Math.random() - 1);
-    set(raw, i, [
-      r * Math.sin(phi) * Math.cos(theta),
-      r * Math.sin(phi) * Math.sin(theta) * 0.82,
-      r * Math.cos(phi) * 0.9,
-    ]);
-
-    // ---- grid: ordered lattice slab ----
-    const gx = i % GX;
-    const gy = Math.floor(i / GX) % GY;
-    const gz = Math.floor(i / (GX * GY)) % GZ;
-    set(grid, i, [
-      (gx / (GX - 1) - 0.5) * 10,
-      (gy / (GY - 1) - 0.5) * 6,
-      (gz / (GZ - 1) - 0.5) * 4,
-    ]);
-
-    // ---- flow: double helix coiled along x (left → right) ----
-    const t = i / COUNT;
-    const strand = i % 2 === 0 ? 0 : Math.PI;
-    const ang = t * TWO_PI * 5 + strand;
-    set(flow, i, [
-      (t - 0.5) * 10,
-      Math.cos(ang) * 1.95 + (Math.random() - 0.5) * 0.2,
-      Math.sin(ang) * 1.95 + (Math.random() - 0.5) * 0.2,
-    ]);
-
-    // ---- insight: 3D bar columns ----
-    const c = i % NB;
-    const row = Math.floor(i / NB);
-    const h = colHeight[c];
-    const top = -3 + h * 6;
-    const yBar = -3 + (row / perCol) * (top + 3);
-    set(insight, i, [
-      (c / (NB - 1) - 0.5) * 10 + (Math.random() - 0.5) * 0.28,
-      yBar,
-      (Math.random() - 0.5) * 0.7,
-    ]);
-
-    // ---- constant per-particle attributes ----
-    color[i] = THREE.MathUtils.clamp(gx / (GX - 1) + (Math.random() - 0.5) * 0.14, 0, 1);
-    seed[i] = Math.random();
-  }
-
-  return { raw, grid, flow, insight, color, seed };
-}
-
-const ORDER: FormationId[] = ["raw", "grid", "flow", "insight"];
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+const ORDER: FormationKey[] = ["seed", "bloom", "flow", "ranked"];
 
 const vertexShader = /* glsl */ `
-  uniform float uMorph;
-  uniform float uTime;
-  uniform float uSize;
-  uniform float uPixelRatio;
-  uniform float uReduced;
+  uniform float uMorph, uTime, uSize, uPixelRatio, uReduced;
+  uniform vec2 uMouse;
+  attribute vec3 aTarget;
+  attribute float aColorMix, aSeed;
+  varying float vColorMix;
 
-  attribute vec3  aTarget;
-  attribute float aColor;
-  attribute float aSeed;
-
-  varying float vColor;
+  float easeInOutCubic(float x){
+    return x < 0.5 ? 4.0*x*x*x : 1.0 - pow(-2.0*x + 2.0, 3.0) / 2.0;
+  }
 
   void main(){
-    float m = smoothstep(0.0, 1.0, uMorph);
-    vec3 base = mix(position, aTarget, m);
+    float m = easeInOutCubic(clamp(uMorph, 0.0, 1.0));
+    vec3 pos = mix(position, aTarget, m);
 
-    // Organic arc: particles bow outward at the midpoint of the transit.
-    float arc = sin(m * 3.14159265) * (1.0 - uReduced);
-    vec3 dir = normalize(base + vec3(0.0001));
-    base += dir * arc * (0.35 + aSeed * 0.55);
-
-    // Idle shimmer once settled, so the cluster never looks frozen.
-    float idle = (1.0 - uReduced) * 0.05;
-    base += vec3(
+    // Arc bow during transit + idle shimmer + slow breathing.
+    float arc = sin(m * 3.14159) * (1.0 - uReduced);
+    pos += normalize(pos + vec3(0.0001)) * arc * (0.25 + aSeed * 0.5);
+    pos += vec3(
       sin(uTime * 0.6 + aSeed * 6.28),
       cos(uTime * 0.5 + aSeed * 5.0),
       sin(uTime * 0.4 + aSeed * 4.0)
-    ) * idle;
+    ) * 0.045 * (1.0 - uReduced);
+    pos *= 1.0 + sin(uTime * 0.7) * 0.02 * (1.0 - uReduced);
 
-    vec4 mv = modelViewMatrix * vec4(base, 1.0);
+    // Cursor gently pushes the field.
+    vec2 toMouse = pos.xy - uMouse;
+    float d = length(toMouse) + 0.0001;
+    pos.xy += (toMouse / d) * smoothstep(2.4, 0.0, d) * 1.0 * (1.0 - uReduced);
+
+    vec4 mv = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = uSize * uPixelRatio * (1.0 / -mv.z);
-
-    vColor = aColor;
+    gl_PointSize = uSize * (0.6 + aSeed * 0.7) * uPixelRatio * (1.0 / -mv.z);
+    vColorMix = aColorMix;
   }
 `;
 
 const fragmentShader = /* glsl */ `
   precision highp float;
-  varying float vColor;
-
+  varying float vColorMix;
   void main(){
     float d = length(gl_PointCoord - vec2(0.5));
     if (d > 0.5) discard;
     float alpha = smoothstep(0.5, 0.04, d);
-
-    vec3 cyan   = vec3(0.341, 0.882, 0.808);
-    vec3 indigo = vec3(0.490, 0.549, 1.000);
-    vec3 col = mix(cyan, indigo, vColor);
-
-    gl_FragColor = vec4(col, alpha * 0.85);
+    vec3 a1 = vec3(1.00, 0.54, 0.34);
+    vec3 a2 = vec3(0.98, 0.35, 0.47);
+    vec3 a3 = vec3(0.55, 0.36, 0.96);
+    vec3 col = vColorMix < 0.5
+      ? mix(a1, a2, vColorMix * 2.0)
+      : mix(a2, a3, (vColorMix - 0.5) * 2.0);
+    col *= 1.08;
+    gl_FragColor = vec4(col, alpha * 0.92);
   }
 `;
 
@@ -156,117 +70,157 @@ export function MorphCluster({
   formation,
   reduced,
 }: {
-  formation: FormationId;
+  formation: FormationKey;
   reduced: boolean;
 }) {
   const pointsRef = useRef<THREE.Points>(null);
-  const F = useMemo(buildFormations, []);
-
-  // Working "from" buffer we can snapshot into on each switch.
-  const fromBuf = useMemo(() => new Float32Array(F.grid.length), [F]);
-
-  const morph = useRef(1); // eased 0 → 1 across a transition
-  const targetKey = useRef<FormationId>(formation);
-  const mouse = useRef({ x: 0, y: 0 });
+  const morph = useRef(1);
+  const active = useRef<FormationKey>("seed");
+  const pointerNDC = useRef(new THREE.Vector2(0, 0));
   const rot = useRef({ x: 0, y: 0 });
+
+  // Precompute every formation's target positions once.
+  const { forms, colorMix, seed } = useMemo(() => {
+    const forms: Record<FormationKey, Float32Array> = {
+      seed: new Float32Array(COUNT * 3),
+      bloom: new Float32Array(COUNT * 3),
+      flow: new Float32Array(COUNT * 3),
+      ranked: new Float32Array(COUNT * 3),
+    };
+    const colorMix = new Float32Array(COUNT);
+    const seed = new Float32Array(COUNT);
+    const NB = 13;
+    const perCol = Math.ceil(COUNT / NB);
+    const colH = Array.from(
+      { length: NB },
+      (_, c) => 0.4 + (0.5 + 0.5 * Math.sin((c / NB) * Math.PI * 1.5 + 0.6)) * 0.6
+    );
+    const set = (a: Float32Array, i: number, x: number, y: number, z: number) => {
+      a[i * 3] = x;
+      a[i * 3 + 1] = y;
+      a[i * 3 + 2] = z;
+    };
+
+    for (let i = 0; i < COUNT; i++) {
+      // seed — a soft spherical cloud
+      const r = 4.6 * Math.cbrt(Math.random());
+      const th = Math.random() * TWO_PI;
+      const ph = Math.acos(2 * Math.random() - 1);
+      set(forms.seed, i, r * Math.sin(ph) * Math.cos(th), r * Math.sin(ph) * Math.sin(th) * 0.82, r * Math.cos(ph) * 0.9);
+
+      // bloom — a fibonacci shell
+      const fi = i + 0.5;
+      const bph = Math.acos(1 - (2 * fi) / COUNT);
+      const bth = GOLDEN * fi;
+      const br = 4.4;
+      set(forms.bloom, i, Math.sin(bph) * Math.cos(bth) * br, Math.cos(bph) * br, Math.sin(bph) * Math.sin(bth) * br);
+
+      // flow — a double helix
+      const t = i / COUNT;
+      const strand = i % 2 === 0 ? 0 : Math.PI;
+      const ang = t * TWO_PI * 5 + strand;
+      set(forms.flow, i, (t - 0.5) * 11, Math.cos(ang) * 1.95 + (Math.random() - 0.5) * 0.2, Math.sin(ang) * 1.95 + (Math.random() - 0.5) * 0.2);
+
+      // ranked — quantified bars
+      const c = i % NB;
+      const row = Math.floor(i / NB);
+      const top = -3 + colH[c] * 6;
+      const yBar = -3 + (row / perCol) * (top + 3);
+      set(forms.ranked, i, (c / (NB - 1) - 0.5) * 10 + (Math.random() - 0.5) * 0.28, yBar, (Math.random() - 0.5) * 0.7);
+
+      colorMix[i] = clamp(i / COUNT + (Math.random() - 0.5) * 0.14, 0, 1);
+      seed[i] = Math.random();
+    }
+    return { forms, colorMix, seed };
+  }, []);
 
   const geometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
-    // Start fully settled on the initial formation.
-    const init = F[formation];
-    fromBuf.set(init);
-    g.setAttribute("position", new THREE.BufferAttribute(fromBuf, 3));
-    g.setAttribute("aTarget", new THREE.BufferAttribute(init.slice(), 3));
-    g.setAttribute("aColor", new THREE.BufferAttribute(F.color, 1));
-    g.setAttribute("aSeed", new THREE.BufferAttribute(F.seed, 1));
+    g.setAttribute("position", new THREE.BufferAttribute(forms.seed.slice(), 3));
+    g.setAttribute("aTarget", new THREE.BufferAttribute(forms.seed.slice(), 3));
+    g.setAttribute("aColorMix", new THREE.BufferAttribute(colorMix, 1));
+    g.setAttribute("aSeed", new THREE.BufferAttribute(seed, 1));
     return g;
+  }, [forms, colorMix, seed]);
+
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uMorph: { value: 1 },
+        uTime: { value: 0 },
+        uSize: { value: 26 },
+        uPixelRatio: { value: 1 },
+        uReduced: { value: reduced ? 1 : 0 },
+        uMouse: { value: new THREE.Vector2(999, 999) },
+      },
+      vertexShader,
+      fragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const material = useMemo(
-    () =>
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uMorph: { value: 1 },
-          uTime: { value: 0 },
-          uSize: { value: 26 },
-          uPixelRatio: { value: 1 },
-          uReduced: { value: reduced ? 1 : 0 },
-        },
-        vertexShader,
-        fragmentShader,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
-
   useEffect(() => {
     material.uniforms.uReduced.value = reduced ? 1 : 0;
+    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 1.75);
   }, [reduced, material]);
 
+  // Track cursor for the orbit + gentle push.
   useEffect(() => {
-    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 1.75);
     if (reduced) return;
     const onMove = (e: PointerEvent) => {
-      mouse.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.current.y = (e.clientY / window.innerHeight) * 2 - 1;
+      pointerNDC.current.set(
+        (e.clientX / window.innerWidth) * 2 - 1,
+        -(e.clientY / window.innerHeight) * 2 + 1
+      );
     };
     window.addEventListener("pointermove", onMove);
     return () => window.removeEventListener("pointermove", onMove);
-  }, [material, reduced]);
+  }, [reduced]);
 
-  // On formation change: snapshot the currently displayed positions into the
-  // "from" buffer, point "aTarget" at the new formation, restart the morph.
+  // React to formation changes by re-baking the "from" state and morphing.
   useEffect(() => {
-    if (formation === targetKey.current && morph.current >= 1) return;
-    const g = pointsRef.current?.geometry as THREE.BufferGeometry | undefined;
-    if (!g) return;
-
-    const pos = g.getAttribute("position") as THREE.BufferAttribute;
-    const tgt = g.getAttribute("aTarget") as THREE.BufferAttribute;
-    const prevTarget = tgt.array as Float32Array;
-    const posArr = pos.array as Float32Array;
-
-    // Snapshot displayed = mix(from, prevTarget, smoothstep(morph)).
-    const m = morph.current;
-    const e = m * m * (3 - 2 * m);
-    for (let i = 0; i < posArr.length; i++) {
-      posArr[i] = lerp(posArr[i], prevTarget[i], e);
-    }
+    if (formation === active.current) return;
+    const pos = geometry.getAttribute("position") as THREE.BufferAttribute;
+    const tgt = geometry.getAttribute("aTarget") as THREE.BufferAttribute;
+    const pa = pos.array as Float32Array;
+    const prev = tgt.array as Float32Array;
+    // Freeze the currently displayed positions as the new starting point.
+    const e = morph.current * morph.current * (3 - 2 * morph.current);
+    for (let k = 0; k < pa.length; k++) pa[k] = lerp(pa[k], prev[k], e);
     pos.needsUpdate = true;
-
-    // New destination.
-    const next = F[formation];
-    (tgt.array as Float32Array).set(next);
+    (tgt.array as Float32Array).set(forms[formation]);
     tgt.needsUpdate = true;
-
     morph.current = reduced ? 1 : 0;
     material.uniforms.uMorph.value = morph.current;
-    targetKey.current = formation;
-  }, [formation, F, material, reduced]);
+    active.current = formation;
+  }, [formation, forms, geometry, material, reduced]);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
-
     if (morph.current < 1) {
       morph.current = Math.min(1, morph.current + dt / (reduced ? 0.0001 : 1.15));
       material.uniforms.uMorph.value = morph.current;
     }
-
     if (!reduced) {
       material.uniforms.uTime.value += dt;
-      // Cursor parallax + slow ambient drift.
-      const targetY = mouse.current.x * 0.5 + material.uniforms.uTime.value * 0.04;
-      const targetX = mouse.current.y * 0.28;
-      rot.current.y = damp(rot.current.y, targetY, 3, dt);
-      rot.current.x = damp(rot.current.x, targetX, 3, dt);
+      rot.current.y = damp(rot.current.y, pointerNDC.current.x * 0.5 + material.uniforms.uTime.value * 0.04, 3, dt);
+      rot.current.x = damp(rot.current.x, -pointerNDC.current.y * 0.28, 3, dt);
       if (pointsRef.current) {
         pointsRef.current.rotation.y = rot.current.y;
         pointsRef.current.rotation.x = rot.current.x;
       }
+      // Project cursor to world for the soft push.
+      const cam = state.camera as THREE.PerspectiveCamera;
+      const vFov = (cam.fov * Math.PI) / 180;
+      const h = 2 * Math.tan(vFov / 2) * cam.position.z;
+      const w = h * cam.aspect;
+      (material.uniforms.uMouse.value as THREE.Vector2).set(
+        (pointerNDC.current.x * w) / 2,
+        (pointerNDC.current.y * h) / 2
+      );
     }
   });
 

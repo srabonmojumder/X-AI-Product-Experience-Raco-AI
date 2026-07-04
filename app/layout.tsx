@@ -1,23 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Xai — Intelligence Workspace",
+  title: "Xai — Living Intelligence",
   description:
-    "From raw data to structured intelligence to action. Xai turns every source into decisions your team can run.",
-  metadataBase: new URL("https://xai-intelligence.example.com"),
+    "A living workspace that grows raw signal into intelligence your team can act on — gently, continuously, in real time.",
+  metadataBase: new URL("https://xai-living.example.com"),
   openGraph: {
-    title: "Xai — Intelligence Workspace",
-    description: "From raw data to structured intelligence to action.",
+    title: "Xai — Living Intelligence",
+    description: "Raw signal, grown into intelligence your team can act on.",
     type: "website",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0B0D12",
-  colorScheme: "dark",
+  themeColor: "#F3EFE8",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -26,13 +24,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en">
+      {/*
+        Fonts are loaded via Google Fonts <link> (hoisted to <head> by Next).
+        This keeps the build network-free and portable; swap to next/font if
+        you prefer self-hosting.
+      */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      {/* eslint-disable-next-line @next/next/no-page-custom-font -- applied globally from the App Router root layout */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet"
+      />
       <body className="relative min-h-screen antialiased">
-        {/* Fixed atmospheric wash behind all content. */}
-        <div
-          aria-hidden
-          className="bg-atmosphere pointer-events-none fixed inset-0 -z-10"
-        />
+        {/* Fixed warm aurora wash behind all content. */}
+        <div aria-hidden className="bg-aurora pointer-events-none fixed inset-0 -z-10" />
         {children}
       </body>
     </html>

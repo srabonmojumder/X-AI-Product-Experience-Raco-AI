@@ -3,295 +3,239 @@
 import { useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { cn } from "@/lib/utils";
-import { stages } from "@/lib/data";
 import { useIsomorphicLayoutEffect } from "@/hooks/useIsomorphicLayoutEffect";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
-import { Eyebrow } from "@/components/ui/primitives";
+import { Reveal, Eyebrow } from "@/components/ui/primitives";
+import { cn, clamp } from "@/lib/utils";
+import { stages } from "@/lib/data";
 
-/* ---------------- SVG scenes (pure geometry, no assets) ---------------- */
-
-const SOURCES = [
-  { x: 40, y: 70 },
-  { x: 40, y: 120 },
-  { x: 40, y: 170 },
-  { x: 40, y: 220 },
-  { x: 40, y: 270 },
-];
-const FUNNEL = { x: 300, y: 170 };
-
-function SceneIngest() {
+/* --- The three animated scenes that live inside the dark field. --- */
+function Scenes({
+  aRef,
+  bRef,
+  cRef,
+  trendRef,
+}: {
+  aRef: React.RefObject<SVGGElement>;
+  bRef: React.RefObject<SVGGElement>;
+  cRef: React.RefObject<SVGGElement>;
+  trendRef: React.RefObject<SVGPathElement>;
+}) {
+  const funnel = [72, 116, 160, 204, 248];
+  const bars = [
+    [77, 150],
+    [129, 110],
+    [181, 128],
+    [233, 78],
+    [285, 52],
+  ];
+  const nodes: [number, number, boolean][] = [
+    [90, 96, false],
+    [170, 66, true],
+    [252, 112, false],
+    [322, 76, false],
+    [132, 186, false],
+    [222, 214, true],
+    [302, 184, false],
+    [192, 136, false],
+  ];
   return (
-    <g className="scene-a">
-      {SOURCES.map((s, i) => (
-        <path
-          key={`al-${i}`}
-          className="a-line"
-          d={`M ${s.x} ${s.y} C ${s.x + 120} ${s.y}, ${FUNNEL.x - 120} ${FUNNEL.y}, ${FUNNEL.x} ${FUNNEL.y}`}
-          fill="none"
-          stroke="rgba(148,163,184,0.5)"
-          strokeWidth="1.25"
-          pathLength={1}
-        />
-      ))}
-      {SOURCES.map((s, i) => (
-        <circle key={`an-${i}`} className="a-node" cx={s.x} cy={s.y} r="5" fill="#57E1CE" />
-      ))}
-      <circle className="a-core" cx={FUNNEL.x} cy={FUNNEL.y} r="14" fill="none" stroke="#7D8CFF" strokeWidth="1.5" />
-      <circle className="a-core" cx={FUNNEL.x} cy={FUNNEL.y} r="6" fill="#7D8CFF" />
-      <text x={40} y={40} className="fill-ink-faint font-mono text-[11px]" style={{ letterSpacing: "0.1em" }}>
-        SOURCES
-      </text>
-    </g>
-  );
-}
-
-const B_NODES = [
-  { x: 90, y: 90, hot: false },
-  { x: 170, y: 60, hot: true },
-  { x: 250, y: 110, hot: false },
-  { x: 320, y: 70, hot: false },
-  { x: 130, y: 180, hot: false },
-  { x: 220, y: 210, hot: true },
-  { x: 300, y: 180, hot: false },
-  { x: 190, y: 130, hot: false },
-];
-const B_EDGES: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [2, 6], [7, 1], [7, 5], [3, 6],
-];
-
-function SceneAnalyze() {
-  return (
-    <g className="scene-b" style={{ opacity: 0 }}>
-      {B_EDGES.map(([a, b], i) => (
-        <line
-          key={`be-${i}`}
-          className="b-edge"
-          x1={B_NODES[a].x}
-          y1={B_NODES[a].y}
-          x2={B_NODES[b].x}
-          y2={B_NODES[b].y}
-          stroke="rgba(148,163,184,0.35)"
-          strokeWidth="1"
-          pathLength={1}
-        />
-      ))}
-      {B_NODES.map((n, i) => (
-        <circle
-          key={`bn-${i}`}
-          className="b-node"
-          cx={n.x}
-          cy={n.y}
-          r={n.hot ? 7 : 5}
-          fill={n.hot ? "#7D8CFF" : "#1E2430"}
-          stroke={n.hot ? "#A7B1FF" : "rgba(148,163,184,0.5)"}
-          strokeWidth="1.25"
-        />
-      ))}
-      <text x={40} y={40} className="fill-ink-faint font-mono text-[11px]" style={{ letterSpacing: "0.1em" }}>
-        SEMANTIC GRAPH
-      </text>
-    </g>
-  );
-}
-
-const C_BARS = [110, 150, 130, 200, 240, 210];
-
-function SceneGenerate() {
-  const baseY = 280;
-  const barW = 34;
-  const gap = 18;
-  return (
-    <g className="scene-c" style={{ opacity: 0 }}>
-      {C_BARS.map((h, i) => {
-        const x = 60 + i * (barW + gap);
-        return (
-          <rect
-            key={`cb-${i}`}
-            className="c-bar"
-            x={x}
-            y={baseY - h}
-            width={barW}
-            height={h}
-            rx="4"
-            fill="url(#cbar)"
-            style={{ transformOrigin: `${x + barW / 2}px ${baseY}px` }}
-          />
-        );
-      })}
-      <path
-        className="c-trend"
-        d={`M 77 ${280 - 110} L 129 ${280 - 150} L 181 ${280 - 130} L 233 ${280 - 200} L 285 ${280 - 240} L 337 ${280 - 210}`}
-        fill="none"
-        stroke="#57E1CE"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        pathLength={1}
-      />
-      <line x1="50" y1={baseY} x2="360" y2={baseY} stroke="rgba(148,163,184,0.25)" strokeWidth="1" />
-      <g className="c-badge" style={{ opacity: 0 }}>
-        <rect x="248" y="40" width="120" height="34" rx="17" fill="rgba(87,225,206,0.10)" stroke="rgba(87,225,206,0.4)" />
-        <circle cx="266" cy="57" r="4" fill="#57E1CE" />
-        <text x="280" y="61" className="fill-ink font-mono text-[12px]">94% confidence</text>
-      </g>
-      <text x={50} y={40} className="fill-ink-faint font-mono text-[11px]" style={{ letterSpacing: "0.1em" }}>
-        INSIGHT
-      </text>
+    <svg viewBox="0 0 400 320" className="absolute inset-0 h-full w-full" aria-hidden>
       <defs>
-        <linearGradient id="cbar" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7D8CFF" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#7D8CFF" stopOpacity="0.15" />
+        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="var(--coral)" stopOpacity="0.95" />
+          <stop offset="1" stopColor="var(--grad-2)" stopOpacity="0.15" />
         </linearGradient>
       </defs>
-    </g>
+
+      {/* Scene A — Listen */}
+      <g ref={aRef}>
+        <text x="30" y="34" fill="var(--field-faint,#8B8072)" fontFamily="'JetBrains Mono'" fontSize="10" letterSpacing="1.5">
+          SOURCES
+        </text>
+        {funnel.map((y, i) => (
+          <path
+            key={i}
+            d={`M 34 ${y} C 150 ${y}, 200 168, 300 168`}
+            fill="none"
+            stroke="rgba(232,222,210,.4)"
+            strokeWidth="1.2"
+          />
+        ))}
+        {funnel.map((y, i) => (
+          <circle key={`n${i}`} cx="34" cy={y} r="4.5" fill="var(--violet)" />
+        ))}
+        <circle cx="300" cy="168" r="14" fill="none" stroke="var(--coral)" strokeWidth="1.5" />
+        <circle cx="300" cy="168" r="5.5" fill="var(--coral)" />
+      </g>
+
+      {/* Scene B — Connect */}
+      <g ref={bRef} opacity={0}>
+        <text x="30" y="34" fill="var(--field-faint,#8B8072)" fontFamily="'JetBrains Mono'" fontSize="10" letterSpacing="1.5">
+          SEMANTIC GRAPH
+        </text>
+        {nodes.slice(0, -1).map((n, i) => {
+          const m = nodes[i + 1];
+          return (
+            <line key={`e${i}`} x1={n[0]} y1={n[1]} x2={m[0]} y2={m[1]} stroke="rgba(232,222,210,.3)" strokeWidth="1" />
+          );
+        })}
+        {nodes.map(([x, y, hot], i) => (
+          <circle
+            key={`bn${i}`}
+            cx={x}
+            cy={y}
+            r={hot ? 7 : 5}
+            fill={hot ? "var(--coral)" : "#241A26"}
+            stroke={hot ? "var(--violet-soft)" : "rgba(232,222,210,.5)"}
+            strokeWidth="1.2"
+          />
+        ))}
+      </g>
+
+      {/* Scene C — Bloom */}
+      <g ref={cRef} opacity={0}>
+        <text x="30" y="34" fill="var(--field-faint,#8B8072)" fontFamily="'JetBrains Mono'" fontSize="10" letterSpacing="1.5">
+          RESOLVED INSIGHT
+        </text>
+        {bars.map(([x, y], i) => (
+          <rect key={`b${i}`} x={x - 18} y={y} width="36" height={196 - y} rx="4" fill="url(#barGrad)" />
+        ))}
+        <path
+          ref={trendRef}
+          d="M 77 170 L 129 130 L 181 150 L 233 90 L 285 60 L 337 100"
+          fill="none"
+          stroke="var(--grad-3)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <g>
+          <circle cx="256" cy="49" r="4" fill="var(--grad-3)" />
+          <text x="270" y="53" fill="var(--field-ink,#E4DBD0)" fontFamily="'JetBrains Mono'" fontSize="12">
+            94% confidence
+          </text>
+        </g>
+      </g>
+    </svg>
   );
 }
 
-/* --------------------------------- Section --------------------------------- */
-
 export function InsightFlow() {
-  const rootRef = useRef<HTMLElement>(null);
-  const pinRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
   const reduced = usePrefersReducedMotion();
+  const pinRef = useRef<HTMLDivElement>(null);
+  const aRef = useRef<SVGGElement>(null);
+  const bRef = useRef<SVGGElement>(null);
+  const cRef = useRef<SVGGElement>(null);
+  const trendRef = useRef<SVGPathElement>(null);
+  const [active, setActive] = useState(0);
 
   useIsomorphicLayoutEffect(() => {
-    if (reduced || !rootRef.current || !pinRef.current) return;
+    if (reduced) {
+      setActive(2);
+      gsap.set(aRef.current, { opacity: 0 });
+      gsap.set(bRef.current, { opacity: 0 });
+      gsap.set(cRef.current, { opacity: 1 });
+      return;
+    }
     gsap.registerPlugin(ScrollTrigger);
-
     const ctx = gsap.context(() => {
-      let prev = -1;
-      const tl = gsap.timeline({
-        defaults: { ease: "power2.inOut" },
-        scrollTrigger: {
-          trigger: rootRef.current!,
-          start: "top top",
-          end: "+=320%",
-          scrub: 1,
-          pin: pinRef.current!,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            const p = self.progress;
-            const idx = p < 0.36 ? 0 : p < 0.7 ? 1 : 2;
-            if (idx !== prev) {
-              prev = idx;
-              setActive(idx);
-            }
-          },
+      const seg = (p: number, a: number, b: number) => clamp((p - a) / (b - a), 0, 1);
+      const st = ScrollTrigger.create({
+        trigger: pinRef.current,
+        start: "top top",
+        end: "+=300%",
+        pin: true,
+        scrub: 1,
+        anticipatePin: 1,
+        onUpdate: (self) => {
+          const p = self.progress;
+          setActive(p < 0.36 ? 0 : p < 0.7 ? 1 : 2);
+          gsap.set(aRef.current, { opacity: 1 - seg(p, 0.32, 0.44) });
+          gsap.set(bRef.current, { opacity: seg(p, 0.34, 0.44) * (1 - seg(p, 0.64, 0.72)) });
+          gsap.set(cRef.current, { opacity: seg(p, 0.66, 0.74) });
         },
       });
-
-      // Stage 1 — Ingest.
-      tl.from(".a-node", { scale: 0, transformOrigin: "center", opacity: 0, stagger: 0.05, duration: 0.4 })
-        .from(".a-line", { strokeDashoffset: 1, strokeDasharray: 1, duration: 0.6, stagger: 0.04 }, "-=0.2")
-        .from(".a-core", { scale: 0, transformOrigin: "center", opacity: 0, duration: 0.4 }, "-=0.3")
-        .to({}, { duration: 0.6 }); // hold
-
-      // Ingest → Analyze.
-      tl.to(".scene-a", { autoAlpha: 0, y: -24, duration: 0.5 })
-        .fromTo(".scene-b", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.5 }, "<")
-        .from(".b-edge", { strokeDashoffset: 1, strokeDasharray: 1, opacity: 0, duration: 0.6, stagger: 0.03 }, "-=0.2")
-        .from(".b-node", { scale: 0, transformOrigin: "center", opacity: 0, stagger: 0.04, duration: 0.4 }, "-=0.4")
-        .to(".b-node", { filter: "brightness(1.15)", duration: 0.3, yoyo: true, repeat: 1 })
-        .to({}, { duration: 0.5 });
-
-      // Analyze → Generate.
-      tl.to(".scene-b", { autoAlpha: 0, y: -24, duration: 0.5 })
-        .fromTo(".scene-c", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.5 }, "<")
-        .from(".c-bar", { scaleY: 0, transformOrigin: "bottom", opacity: 0, stagger: 0.06, duration: 0.5 }, "-=0.2")
-        .from(".c-trend", { strokeDashoffset: 1, strokeDasharray: 1, duration: 0.6 }, "-=0.3")
-        .to(".c-badge", { autoAlpha: 1, duration: 0.4 }, "-=0.2")
-        .to({}, { duration: 0.4 });
-    }, rootRef);
-
+      // draw the trend line once, tied to the scroll
+      const len = trendRef.current?.getTotalLength() ?? 0;
+      if (trendRef.current) {
+        gsap.set(trendRef.current, { strokeDasharray: len, strokeDashoffset: len });
+        gsap.to(trendRef.current, {
+          strokeDashoffset: 0,
+          ease: "none",
+          scrollTrigger: { trigger: pinRef.current, start: "top top", end: "+=300%", scrub: 1 },
+        });
+      }
+      return () => st.kill();
+    }, pinRef);
     return () => ctx.revert();
   }, [reduced]);
 
   return (
-    <section id="insight-flow" ref={rootRef} className="relative border-t border-line">
+    <section id="flow" className="relative">
       <div ref={pinRef} className="flex min-h-screen items-center py-20">
-        <div className="shell grid w-full gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center">
-          {/* Left: the stage narrative. */}
+        <div className="shell grid w-full items-center gap-12 lg:grid-cols-[1fr_1.05fr]">
+          {/* Stage list */}
           <div>
-            <Eyebrow>How it works</Eyebrow>
-            <h2 className="mt-5 max-w-md text-display-md font-medium text-ink">
-              Three stages, one continuous pipeline.
-            </h2>
+            <Reveal>
+              <Eyebrow>How it flows</Eyebrow>
+            </Reveal>
+            <Reveal delay={0.06}>
+              <h2 className="text-display-md mt-5 text-ink">
+                Three moves,
+                <br />
+                one living system.
+              </h2>
+            </Reveal>
 
-            <ol className="mt-10 space-y-1">
-              {stages.map((s, i) => {
-                const isActive = i === active;
-                return (
-                  <li key={s.id}>
-                    <div
-                      className={cn(
-                        "group relative rounded-xl border px-5 py-4 transition-colors duration-500",
-                        isActive ? "border-line-strong bg-surface" : "border-transparent hover:bg-white/[0.02]"
-                      )}
-                    >
-                      {/* Active rail. */}
-                      <span
-                        className={cn(
-                          "absolute left-0 top-1/2 h-0 w-[2px] -translate-y-1/2 rounded-full bg-accent transition-all duration-500",
-                          isActive && "h-8"
-                        )}
-                      />
-                      <div className="flex items-baseline gap-4">
-                        <span
-                          className={cn(
-                            "font-mono text-xs transition-colors duration-500",
-                            isActive ? "text-accent" : "text-ink-faint"
-                          )}
-                        >
-                          {s.index}
-                        </span>
-                        <div>
-                          <h3
-                            className={cn(
-                              "text-lg font-medium transition-colors duration-500",
-                              isActive ? "text-ink" : "text-ink-muted"
-                            )}
-                          >
-                            {s.title}
-                          </h3>
-                          <p className="mt-1 text-sm leading-relaxed text-ink-muted">{s.summary}</p>
-                          <div
-                            className={cn(
-                              "grid transition-all duration-500",
-                              isActive ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                            )}
-                          >
-                            <div className="overflow-hidden">
-                              <p className="text-sm leading-relaxed text-ink-faint">{s.detail}</p>
-                              <div className="mt-3 flex items-center gap-2 font-mono text-xs">
-                                <span className="text-ink-faint">{s.metric.label}</span>
-                                <span className="text-signal">{s.metric.value}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+            <div className="mt-10 flex flex-col gap-2">
+              {stages.map((s, i) => (
+                <div
+                  key={s.index}
+                  className={cn(
+                    "relative rounded-2xl px-5 py-4 transition-all duration-500 ease-out-expo",
+                    active === i ? "bg-paper-raised shadow-soft" : "opacity-60"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "bg-living absolute left-0 top-5 bottom-5 w-0.5 origin-top rounded-full transition-transform duration-500",
+                      active === i ? "scale-y-100" : "scale-y-0"
+                    )}
+                  />
+                  <div className="flex items-center gap-3 pl-3">
+                    <span className="font-mono text-xs text-ink-faint">{s.index}</span>
+                    <h3 className="font-display text-lg font-bold text-ink">{s.name}</h3>
+                  </div>
+                  <p className="mt-1.5 pl-3 text-sm leading-relaxed text-ink-muted">{s.summary}</p>
+                  <div
+                    className={cn(
+                      "grid pl-3 transition-all duration-500",
+                      active === i ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                    )}
+                  >
+                    <div className="overflow-hidden">
+                      <p className="text-[0.85rem] leading-relaxed text-ink-faint">{s.detail}</p>
+                      <div className="mt-3 flex gap-2.5 font-mono text-[11.5px]">
+                        <span className="text-ink-faint">{s.metric.label}</span>
+                        <span className="text-coral">{s.metric.value}</span>
                       </div>
                     </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-
-          {/* Right: the animated geometry. */}
-          <div className="panel relative aspect-[4/3] w-full overflow-hidden bg-surface-sunken">
-            <div className="absolute inset-0 bg-[radial-gradient(80%_80%_at_60%_40%,rgba(125,140,255,0.06),transparent)]" />
-            <svg viewBox="0 0 400 320" className="absolute inset-0 h-full w-full" role="img" aria-label="Pipeline visualisation">
-              <SceneIngest />
-              <SceneAnalyze />
-              <SceneGenerate />
-            </svg>
-            <div className="absolute bottom-4 left-5 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
-              stage {String(active + 1).padStart(2, "0")} / 03
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* Field viewport */}
+          <Reveal>
+            <div className="field aspect-[4/3] w-full">
+              <span className="absolute left-4 bottom-3 z-10 font-mono text-[10px] uppercase tracking-[0.2em] text-field-faint">
+                stage {String(active + 1).padStart(2, "0")} / 03
+              </span>
+              <Scenes aRef={aRef} bRef={bRef} cRef={cRef} trendRef={trendRef} />
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>

@@ -28,7 +28,7 @@ export function Reveal({
   );
 }
 
-/** Mono, tracked-out label. Optionally shows a leading tick. */
+/** Tracked-out mono label with a leading gradient tick. */
 export function Eyebrow({
   children,
   tick = true,
@@ -39,8 +39,8 @@ export function Eyebrow({
   className?: string;
 }) {
   return (
-    <span className={cn("eyebrow inline-flex items-center gap-2", className)}>
-      {tick && <span className="h-1 w-1 rounded-full bg-signal-cyan" />}
+    <span className={cn("eyebrow inline-flex items-center gap-2.5", className)}>
+      {tick && <span className="bg-living h-0.5 w-6 rounded-full" />}
       {children}
     </span>
   );
@@ -64,7 +64,7 @@ export function SectionHeading({
         <Eyebrow>{eyebrow}</Eyebrow>
       </Reveal>
       <Reveal delay={0.06}>
-        <h2 className="mt-5 text-display-md font-medium text-ink">{title}</h2>
+        <h2 className="text-display-md mt-5 text-ink">{title}</h2>
       </Reveal>
       {lede && (
         <Reveal delay={0.12}>
@@ -78,24 +78,26 @@ export function SectionHeading({
 /** A faux product-window chrome used to frame the dashboard. */
 export function WindowFrame({
   children,
-  label,
+  url,
+  status = "live",
 }: {
   children: React.ReactNode;
-  label: string;
+  url: string;
+  status?: string;
 }) {
   return (
-    <div className="panel overflow-hidden shadow-[0_40px_120px_-40px_rgba(0,0,0,0.8)]">
-      <div className="flex items-center gap-3 border-b border-line bg-surface-sunken px-4 py-3">
+    <div className="panel overflow-hidden shadow-window">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
         <div className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+          <span className="h-2.5 w-2.5 rounded-[3px] border border-coral" />
+          <span className="h-2.5 w-2.5 rounded-[3px] border border-line-strong" />
+          <span className="h-2.5 w-2.5 rounded-[3px] border border-line-strong" />
         </div>
-        <div className="mx-auto flex items-center gap-2 rounded-md border border-line px-3 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-signal-cyan/80" />
-          <span className="font-mono text-[11px] tracking-wide text-ink-muted">{label}</span>
-        </div>
-        <div className="w-14" />
+        <span className="font-mono text-[11px] tracking-wide text-ink-faint">{url}</span>
+        <span className="ml-auto inline-flex items-center gap-2 font-mono text-[10px] text-ink-faint">
+          <span className="h-1.5 w-1.5 rounded-full bg-coral shadow-[0_0_9px_var(--coral)]" />
+          {status}
+        </span>
       </div>
       {children}
     </div>
